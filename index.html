@@ -145,6 +145,7 @@ button.find { font: inherit; font-size: 13px; font-weight: 600; color: var(--acc
 .dots button.on { width: 18px; background: var(--accent-text); }
 .hello { font: 700 27px/1.12 var(--display); margin: 0; text-wrap: balance; }
 .hello.small { font-size: 21px; margin-top: 2px; }
+.hi { font: 500 15px/1.2 var(--display); color: var(--accent-text); margin-bottom: -6px; }
 .push { margin-top: auto; }
 .skip { color: var(--accent-text); font-weight: 600; padding: 6px; text-align: center; }
 .center { text-align: center; }
@@ -242,7 +243,7 @@ function dayLabel(d) {
 const $ = (id) => document.getElementById(id);
 // Внутри Telegram приложение берёт его тему и имя пользователя, показывает системную кнопку «Назад» и отвечает вибрацией.
 const BOT = "whtcook_bot";
-let TG = null, userName = "";
+let TG = null;
 function tgInit() {
   const app = globalThis.Telegram && globalThis.Telegram.WebApp;
   if (TG || !app || !app.platform || app.platform === "unknown") return;   // открыто не в Telegram — работаем как обычная страница
@@ -256,9 +257,22 @@ function tgInit() {
   safe(() => app.ready()); safe(() => app.expand()); safe(() => app.disableVerticalSwipes());
   safe(paint); safe(() => app.onEvent("themeChanged", paint));
   safe(() => app.BackButton.onClick(() => closeSheet()));
-  safe(() => { userName = String(app.initDataUnsafe.user.first_name || "").slice(0, 30); });
   if ($("screen") && $("screen").innerHTML) render();
 }
+// Приветствие: при каждом открытии новое — на разных языках и в разной форме, одно из них по времени суток.
+const HELLOS = ["Привет!", "Здравствуйте!", "Приветик!", "Рады вас видеть!", "Салют!", "Доброго дня!", "Hello!", "Hi there!", "Bonjour!", "Salut!", "¡Hola!", "Ciao!",
+  "Buongiorno!", "Hallo!", "Guten Tag!", "Olá!", "Merhaba!", "Hej!", "Ahoj!", "Cześć!", "Γειά σου!", "Aloha!", "Namaste!", "Шалом!", "Салам!", "Сәлем!", "Гамарджоба!", "Барев!",
+  "こんにちは!", "안녕하세요!", "你好!", "Bon appétit!", "Buon appetito!", "Приятного аппетита!"];
+function pickHello() {
+  const hour = new Date().getHours(), byTime = hour < 5 ? "Доброй ночи!" : hour < 12 ? "Доброе утро!" : hour < 18 ? "Добрый день!" : "Добрый вечер!";
+  const all = [byTime, ...HELLOS];
+  let last = -1, k = 0;
+  try { const saved = localStorage.getItem("menu-hi"); if (saved !== null) last = +saved; } catch (err) { /* хранилища нет — просто случайное */ }
+  do k = Math.floor(Math.random() * all.length); while (k === last);   // не то же, что в прошлый раз
+  try { localStorage.setItem("menu-hi", String(k)); } catch (err) { /* не запомнили — не страшно */ }
+  return all[k];
+}
+const hello = pickHello();
 // Вибрация: короткая на отметках, заметная — когда что-то готово.
 function buzz(kind) {
   try { if (TG) kind === "ok" ? TG.HapticFeedback.notificationOccurred("success") : TG.HapticFeedback.selectionChanged(); } catch (err) { /* вибрации нет */ }
@@ -657,7 +671,7 @@ function viewMenu() {
       ${e.left || made ? "" : `<button class="swap" data-act="swap" data-d="${d}" data-i="${i}" aria-label="Заменить: ${esc(e.title)}">↻</button>`}</div>`;
   }).join("") + "</div>").join("");
   const n = state.plan.length, madeCount = Object.values(state.cooked).filter(Boolean).length;
-  return `<div class="head"><h2>Меню на ${n} ${plural(n, "день", "дня", "дней")}</h2><button class="pill" data-act="new">Новое меню</button></div>
+  return `<div class="hi">${esc(hello)} 👋</div><div class="head"><h2>Меню на ${n} ${plural(n, "день", "дня", "дней")}</h2><button class="pill" data-act="new">Новое меню</button></div>
     <div class="stats">${stat(money(total) + " ₽", "из " + money(state.budget) + " ₽")}${stat(perPortion + " ₽", "за порцию")}${madeCount ? stat(madeCount + " из " + cooked.length, "приготовлено") : stat(cooked.length + " из " + all.length, "готовить")}</div>
     ${hint("👶", state.kidNote)}${hint("✓", state.said)}${hint("!", state.note)}
     <div class="legend">Калории — на одного взрослого. Продукты и сумма — на всех (${who()})</div>${days}
@@ -714,7 +728,7 @@ function viewOnboard() {
     "Блинчики на молоке", "Тыквенный суп-пюре", "Домашняя шаурма с курицей", "Красная рыба с картофелем", "Шакшука", "Пицца на лаваше с ветчиной"];
   if (!n) return `<div class="hero" id="hero">${show.map((t) => thumb(t, true)).join("").replace(/ loading="lazy"/g, "")}</div>
     <div class="dots" id="dots">${show.map((t, k) => `<button class="${k ? "" : "on"}" data-act="hero" data-k="${k}" aria-label="Фото ${k + 1}: ${esc(t)}"></button>`).join("")}</div>
-    <h1 class="hello">${userName ? esc(userName) + ", что" : "Что"} готовим на этой неделе?</h1>
+    <div class="hi">${esc(hello)} 👋</div><h1 class="hello">Что готовим на этой неделе?</h1>
     <div class="note">Меню, рецепты и список покупок — за одну минуту.</div>
     ${hint("🍽", "Меню на 3–7 дней под вашу семью, технику и бюджет")}
     ${hint("📖", "Подробные рецепты по шагам, с таймером")}
