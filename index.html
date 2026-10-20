@@ -93,13 +93,13 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 .field { display: flex; flex-direction: column; gap: 8px; }
 .label { font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { padding: 8px 13px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+.chip { padding: 9px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
 .stepper { display: flex; align-items: center; gap: 14px; }
 .people-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--line); }
 .people-row:first-child { border-top: 0; }
 .people .stepper { gap: 10px; }
-.people .stepper button { width: 34px; height: 34px; background: var(--chip); border: 0; }
+.people .stepper button { width: 38px; height: 38px; background: var(--chip); border: 0; }
 .people .stepper b { font-size: 17px; }
 .stepper button { width: 38px; height: 38px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 18px; }
 .stepper b { font: 700 20px var(--display); min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -124,7 +124,7 @@ textarea { width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px sol
 .sheet { background: var(--app); width: 100%; max-height: 88%; overflow-y: auto; border-radius: 22px 22px 0 0; padding: 18px 16px calc(22px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
 .sheet h3 { font: 700 18px/1.2 var(--display); margin: 0; text-wrap: balance; }
 .sheet-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.close { width: 34px; height: 34px; border-radius: 50%; background: var(--chip); flex: none; font-size: 15px; }
+.close { width: 38px; height: 38px; border-radius: 50%; background: var(--chip); flex: none; font-size: 15px; }
 .sheet ol, .sheet ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
 .sheet ul { list-style: none; padding: 0; gap: 0; background: var(--card); border-radius: 14px; }
 .sheet ul li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 13px; border-top: 1px solid var(--line); }
@@ -175,6 +175,18 @@ button.day-name { width: 100%; text-align: left; }
 .tot-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .tot-top b { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar.over i { background: var(--accent-text); }
+/* Уведомление внизу экрана, над вкладками. */
+.toast { position: absolute; left: 12px; right: 12px; bottom: 74px; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--fg); color: var(--app); border-radius: 14px; padding: 11px 14px; font-size: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+.toast button { color: var(--accent); font-weight: 700; padding: 4px 2px; flex: none; }
+.add-row { display: flex; gap: 8px; align-items: center; }
+.add-row input { flex: 1; min-width: 0; }
+.photo-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.photo-pick label.chip { cursor: pointer; }
+details.ings { background: var(--card); border-radius: 14px; padding: 10px 13px; }
+details.ings summary { font-weight: 600; cursor: pointer; }
+details.ings ul { margin-top: 8px; background: none; }
+details.ings li { padding-inline: 0; }
 #own-preview { display: flex; flex-direction: column; gap: 3px; }
 #own-preview .bad { color: var(--accent-text); font-weight: 600; }
 .hint.link b { color: var(--accent-text); font-weight: 600; white-space: nowrap; }
@@ -217,6 +229,7 @@ button.day-name { width: 100%; text-align: left; }
     <div id="timer"></div>
     <nav class="tabs" id="tabs"></nav>
     <div class="sheet-wrap" id="sheet" hidden></div>
+    <div class="toast" id="toast" role="status" hidden></div>
   </div>
 </div>
 
@@ -235,7 +248,7 @@ const state = {
   days: 5, slots: ["обед", "ужин"], budget: 5000, plan: DATA.plan, done: {}, note: "",
   start: 0, from: 0, sub: 0, home: [], cooked: {}, swaps: 0, menus: 0, homeMode: false, seen: false, ob: 0,
   speed: 0, bookQ: "", bookSlot: "", bookQuick: false, bookLiked: false, bookAll: false, bookN: 24, bookHome: false,
-  trips: false, history: [], mine: false, goal: 0, own: {}, ownP: {}, bookOwn: false,
+  trips: false, history: [], mine: false, goal: 0, own: {}, ownP: {}, bookOwn: false, extra: [], savedAt: 0,
 };
 // Без подписки: одно своё меню и десять замен — как в боте.
 const FREE_MENUS = 1, FREE_SWAPS = 10;
@@ -267,6 +280,7 @@ function tgInit() {
   safe(paint); safe(() => app.onEvent("themeChanged", paint));
   safe(() => app.BackButton.onClick(() => closeSheet()));
   if ($("screen") && $("screen").innerHTML) render();
+  if (booted) cloudPull();
 }
 // Приветствие: при каждом открытии новое, в разной форме; одно из них — по времени суток.
 const HELLOS = ["Привет!", "Приветик!", "Приветствуем!", "Здравствуйте!", "Здравствуй!", "Салют!", "Доброго дня!", "Рады вас видеть!", "Как хорошо, что вы зашли!",
@@ -285,6 +299,93 @@ const hello = pickHello();
 // Вибрация: короткая на отметках, заметная — когда что-то готово.
 function buzz(kind) {
   try { if (TG) kind === "ok" ? TG.HapticFeedback.notificationOccurred("success") : TG.HapticFeedback.selectionChanged(); } catch (err) { /* вибрации нет */ }
+}
+// Короткое уведомление внизу. С undo — кнопка «Вернуть», которая откатывает последнее действие с меню.
+let undoState = null, toastTimer = null;
+const later = (fn, ms) => (globalThis.setTimeout ? globalThis.setTimeout(fn, ms) : null);
+const stop = (id) => { if (id && globalThis.clearTimeout) globalThis.clearTimeout(id); };
+function snapshot() {
+  return JSON.stringify({ plan: state.plan, banned: state.banned, liked: state.liked, note: state.note, swaps: state.swaps, cooked: state.cooked, gone: Object.keys(R).filter((t) => R[t].gone) });
+}
+function toast(text, undo) {
+  undoState = undo || null;
+  const el = $("toast");
+  if (!el) return;
+  el.innerHTML = `<span>${esc(text)}</span>${undo ? `<button data-act="undo">Вернуть</button>` : ""}`;
+  el.hidden = false;
+  stop(toastTimer);
+  toastTimer = later(() => { el.hidden = true; undoState = null; }, undo ? 6000 : 2500);
+}
+function undo() {
+  if (!undoState) return;
+  const s = JSON.parse(undoState);
+  ["plan", "banned", "liked", "note", "swaps", "cooked"].forEach((key) => { state[key] = s[key]; });
+  Object.keys(R).forEach((t) => { if (R[t].own) R[t].gone = s.gone.includes(t); });
+  syncOwn(); undoState = null; $("toast").hidden = true;
+}
+
+// Копия данных в облаке Telegram: на новом телефоне и в Telegram на компьютере всё на месте.
+// Облако хранит строки до 4096 знаков, поэтому данные режутся на куски. Фото своих блюд в облако не попадают — они тяжёлые.
+const CLOUD = "s", CHUNK = 4000;
+let cloudReady = false, cloudTimer = null, lastSaved = "", freshStart = true, booted = false;
+function cloudStore() {
+  try { return TG && TG.CloudStorage && (!TG.isVersionAtLeast || TG.isVersionAtLeast("6.9")) ? TG.CloudStorage : null; } catch (err) { return null; }
+}
+function cloudCopy() {
+  const data = Object.fromEntries(KEEP.map((key) => [key, state[key]]));
+  data.own = Object.fromEntries(Object.entries(state.own).map(([t, r]) => [t, Object.assign({}, r, { photo: undefined })]));
+  data.savedAt = state.savedAt;
+  return JSON.stringify(data);
+}
+function cloudPush() {
+  const cs = cloudStore();
+  if (!cs || !cloudReady) return;
+  stop(cloudTimer);
+  cloudTimer = later(() => {
+    const json = cloudCopy(), parts = [];
+    for (let i = 0; i < json.length; i += CHUNK) parts.push(json.slice(i, i + CHUNK));
+    let left = parts.length, failed = false;
+    try {   // число кусков пишется последним: читатель никогда не увидит половину новой копии
+      parts.forEach((part, k) => cs.setItem(CLOUD + k, part, (err) => { if (err) failed = true; if (--left === 0 && !failed) cs.setItem(CLOUD + "n", String(parts.length)); }));
+    } catch (err) { /* облако недоступно — данные остаются в телефоне */ }
+  }, 1500);
+}
+// При запуске в Telegram: если в облаке копия новее (или в телефоне пусто) — берём её.
+function cloudPull() {
+  const cs = cloudStore();
+  if (!cs || cloudReady) return;
+  const done = () => { cloudReady = true; cloudPush(); };
+  try {
+    cs.getItem(CLOUD + "n", (err, n) => {
+      if (err || !(+n > 0)) return done();
+      const keys = Array.from({ length: +n }, (x, k) => CLOUD + k);
+      cs.getItems(keys, (err2, values) => {
+        let saved = null;
+        try { saved = JSON.parse(keys.map((k) => (values || {})[k] || "").join("")); } catch (e) { saved = null; }
+        if (!err2 && saved && (freshStart || (saved.savedAt || 0) > (state.savedAt || 0)) && applySaved(saved)) { closeSheet(); render(); toast("Данные подтянуты из облака Telegram"); }
+        done();
+      });
+    });
+  } catch (err) { cloudReady = true; }
+}
+function cloudClear(then) {
+  const cs = cloudStore();
+  if (!cs) return then();
+  const end = later(then, 2000);   // облако молчит — не ждём бесконечно
+  try {
+    cs.getItem(CLOUD + "n", (err, n) => {
+      const keys = [CLOUD + "n", ...Array.from({ length: +n || 0 }, (x, k) => CLOUD + k)];
+      cs.removeItems(keys, () => { stop(end); then(); });
+    });
+  } catch (err) { stop(end); then(); }
+}
+// Пока идёт готовка по шагам, экран телефона не гаснет.
+let wake = null;
+function keepAwake(on) {
+  try {
+    if (on && !wake && globalThis.navigator && navigator.wakeLock) navigator.wakeLock.request("screen").then((lock) => { wake = lock; }).catch(() => {});
+    if (!on && wake) { wake.release(); wake = null; }
+  } catch (err) { /* браузер не умеет — не страшно */ }
 }
 // Отправить текст в чат: Telegram сам предложит выбрать, кому.
 function shareText(text) {
@@ -582,6 +683,7 @@ function sheetCook() {
   const { title, n } = cook, r = R[title], last = n === r.steps.length - 1;
   return `<div class="sheet-top"><div><div class="note">Шаг ${n + 1} из ${r.steps.length}</div><h3>${esc(title)}</h3></div><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
     <div class="bar"><i style="width:${Math.round((n + 1) / r.steps.length * 100)}%"></i></div>
+    <details class="ings"><summary>Продукты · ${r.ings.length}</summary><ul>${ingredientRows(title, cook.times || 1, cook.base || 0).map(([label, value]) => `<li><span>${esc(label)}</span><span class="amount">${esc(value)}</span></li>`).join("")}</ul></details>
     <div class="cook-step">${esc(r.steps[n])}.</div>
     <div class="legend cook-next">${last ? "Это последний шаг." : "Потом: " + esc(r.steps[n + 1]) + "."}</div>
     <div class="chips">${stepTimers(r.steps[n]).map((m) => `<button class="chip" data-act="timer" data-k="${m}">⏱ Таймер на ${m} мин</button>`).join("")}</div>
@@ -666,8 +768,9 @@ const ICONS = [
   [/плов|рис/, "🍚"], [/картош|картоф|пюре|драник/, "🥔"],
 ];
 const iconFor = (title) => (ICONS.find(([re]) => re.test(title.toLowerCase() + " ")) || [0, "🥘"])[1];
+const photoSrc = (title) => (R[title] && R[title].photo) || (PHOTO[title] ? "photos/" + PHOTO[title] : "");
 function thumb(title, big) {
-  const photo = PHOTO[title] && "photos/" + PHOTO[title];
+  const photo = photoSrc(title);
   return `<span class="thumb${big ? " big" : ""}">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : iconFor(title)}</span>`;
 }
 
@@ -704,7 +807,8 @@ function viewMenu() {
 function viewShop() {
   const s = shopping(), { groups, groups2, home, have, need, total } = s;
   const url = S[state.service][1];
-  const items = [...Object.values(groups).flat(), ...Object.values(groups2).flat()], todo = items.filter((x) => !state.done[x[3]]), left = todo.length;
+  const items = [...Object.values(groups).flat(), ...Object.values(groups2).flat()], todo = items.filter((x) => !state.done[x[3]]);
+  const extraLeft = state.extra.filter((x) => !x.done).length, left = todo.length + extraLeft, count = items.length + state.extra.length;
   const rest = round50(todo.reduce((sum, x) => sum + x[2], 0));
   const depts = (g) => DEPTS.map((d) => [d, (g[d] || []).filter((x) => !(state.hideDone && state.done[x[3]]))]).filter(([, rows]) => rows.length)
     .map(([d, rows]) => `<div class="dept"><div class="day-name"><span>${d}</span></div><div class="rows">` +
@@ -716,13 +820,17 @@ function viewShop() {
   const two = Object.keys(groups2).length > 0;
   const list = two ? trip("Первая закупка", "сейчас", s.sum1) + depts(groups) + trip("Вторая закупка", dayLabel(s.cut).toLowerCase() + " или накануне", s.sum2) + depts(groups2) : depts(groups);
   return `<div class="head"><h2>Покупки</h2><span class="sub">${esc(S[state.service][0])}</span></div>
-    <div class="stats">${left && left < items.length ? stat("≈ " + money(rest) + " ₽", "осталось из " + money(total) + " ₽") : stat("≈ " + money(total) + " ₽", "точнее — в корзине")}${stat(left ? left + " из " + items.length : "Всё", left ? "осталось купить" : "куплено")}</div>
+    <div class="stats">${left && left < items.length ? stat("≈ " + money(rest) + " ₽", "осталось из " + money(total) + " ₽") : stat("≈ " + money(total) + " ₽", "точнее — в корзине")}${stat(left ? left + " из " + count : "Всё", left ? "осталось купить" : "куплено")}</div>
     <div class="chips"><button class="chip" data-act="share-list">Отправить</button><button class="chip" data-act="copy" id="copy-list">Скопировать</button>
       <button class="chip${state.hideDone ? " on" : ""}" data-act="hide">${state.hideDone ? "Показать купленное" : "Скрыть купленное"}</button>
       <button class="chip${state.homeMode ? " on" : ""}" data-act="home-mode">${state.homeMode ? "Готово" : "Уже есть дома"}</button>
       ${state.plan.length > 2 ? `<button class="chip${state.trips ? " on" : ""}" data-act="trips">В два захода</button>` : ""}</div>
     ${state.homeMode ? hint("🏠", "Нажимайте на то, что уже есть дома, — уберу из списка и из суммы.") : ""}
     ${s.cut && !two ? hint("✓", "В этом меню вторая закупка не нужна: всё доживёт до готовки. В следующем меню учту две закупки.") : ""}
+    <div class="add-row"><input type="text" id="extra-q" maxlength="40" placeholder="Добавить: хлеб, вода" aria-label="Добавить в список"><button class="pill ghost" data-act="extra-add">Добавить</button></div>
+    ${state.extra.length ? `<div class="dept"><div class="day-name"><span>Своё</span><span>не в сумме</span></div><div class="rows">` + state.extra.map((x, k) => (state.hideDone && x.done ? "" : `<div class="row${x.done ? " done" : ""}">
+      <button class="box" data-act="extra-check" data-k="${k}" aria-label="Отметить: ${esc(x.n)}">✓</button><span class="name">${esc(cap(x.n))}</span>
+      <button class="find" data-act="extra-del" data-k="${k}" aria-label="Убрать: ${esc(x.n)}">✕</button></div>`)).join("") + "</div></div>" : ""}
     ${storageAdvice(s)}${list}
     ${have.length ? `<div class="dept"><div class="day-name"><span>Уже есть дома</span><span>не в сумме</span></div><div class="rows">` + have.map((n) => `<div class="row"><span class="name">${esc(cap(n))}</span>
       <span class="amount">нужно ${need[n]}</span>${state.home.includes(n) ? `<button class="find" data-act="home" data-n="${esc(n)}">Вернуть</button>` : ""}</div>`).join("") + "</div></div>" : ""}
@@ -795,7 +903,7 @@ function bookCards() {
   return top + `<div class="legend">${list.length} ${plural(list.length, "блюдо", "блюда", "блюд")}${state.bookAll ? "" : " под вашу анкету"}${state.bookHome ? (ready ? ` · из них ${ready} — всё дома` : " · везде нужно что-то докупить") : ""}</div><div class="grid">` + list.slice(0, state.bookN).map((t) => {
     const r = R[t], why = state.bookAll ? whyNot(t) : "", miss = state.bookHome ? missing(t) : null;
     return `<button class="card${why ? " off" : ""}" data-act="dish" data-t="${esc(t)}">
-      <span class="card-photo">${PHOTO[t] ? `<img src="photos/${esc(PHOTO[t])}" alt="" loading="lazy">` : iconFor(t)}</span>
+      <span class="card-photo">${photoSrc(t) ? `<img src="${esc(photoSrc(t))}" alt="" loading="lazy">` : iconFor(t)}</span>
       <span class="card-body"><span class="card-title">${state.liked.includes(t) ? "♥ " : ""}${esc(t)}</span>
       <span class="dish-meta">${why ? esc(why) : miss ? (miss.length ? "докупить: " + esc(shortList(miss)) : "всё есть дома") : `${r.own ? "своё · " : ""}${r.min} мин · ${r.nutr[0]} ккал`}</span></span>${inMenu.has(t) ? `<span class="badge ok tag">в меню</span>` : ""}</button>`;
   }).join("") + "</div>" + (list.length > state.bookN ? `<button class="wide ghost" data-act="book-more">Показать ещё ${Math.min(24, list.length - state.bookN)}</button>` : "");
@@ -902,8 +1010,8 @@ function ingPreview() {
 let draft = null;
 function newDraft(title) {
   const r = title && R[title], s = r && r.src;
-  draft = r ? { was: title, title, slots: [...r.slots], min: r.min, keeps: r.keeps, appl: [...(r.appl[0] || "")], serves: s.serves, ings: s.ings, steps: s.steps }
-    : { was: null, title: "", slots: ["о", "у"], min: 30, keeps: 1, appl: ["п"], serves: 4, ings: "", steps: "" };
+  draft = r ? { was: title, title, slots: [...r.slots], min: r.min, keeps: r.keeps, appl: [...(r.appl[0] || "")], serves: s.serves, ings: s.ings, steps: s.steps, photo: r.photo || "" }
+    : { was: null, title: "", slots: ["о", "у"], min: 30, keeps: 1, appl: ["п"], serves: 4, ings: "", steps: "", photo: "" };
 }
 function readDraft() { [["own-title", "title"], ["own-ings", "ings"], ["own-steps", "steps"]].forEach(([id, key]) => { const el = $(id); if (el && typeof el.value === "string") draft[key] = el.value; }); }
 function sheetOwn(error = "") {
@@ -911,6 +1019,10 @@ function sheetOwn(error = "") {
   return `<div class="sheet-top"><h3>${d.was ? "Изменить блюдо" : "Своё блюдо"}</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
     <div class="legend">Блюдо появится в рецептах и будет попадать в меню наравне с остальными. Его видите только вы.</div>
     <div class="field"><label class="label" for="own-title">Название</label><input type="text" id="own-title" value="${esc(d.title)}" maxlength="60" placeholder="Бабушкин плов"></div>
+    <div class="field"><div class="label">Фото <span class="note">по желанию</span></div><div class="photo-pick">
+      ${d.photo ? `<span class="thumb big"><img src="${esc(d.photo)}" alt=""></span>` : `<span class="thumb big">${iconFor(d.title || "")}</span>`}
+      <label class="chip">${d.photo ? "Другое фото" : "Выбрать фото"}<input type="file" accept="image/*" id="own-photo" hidden></label>
+      ${d.photo ? `<button class="chip" data-act="own-photo-del">Убрать</button>` : ""}</div></div>
     <div class="field"><div class="label">Когда едим</div>${chips([["з", "Завтрак"], ["о", "Обед"], ["у", "Ужин"]], (k) => d.slots.includes(k), "own-slot")}</div>
     <div class="field"><div class="label">Время готовки</div>${chips([[15, "15 мин"], [30, "30 мин"], [45, "45 мин"], [60, "1 час"], [90, "1,5 часа"]], (k) => d.min == k, "own-min")}</div>
     <div class="field"><div class="label">Хранится в холодильнике</div>${chips([[1, "1 день"], [2, "2 дня"], [3, "3 дня"]], (k) => d.keeps == k, "own-keeps")}</div>
@@ -951,6 +1063,7 @@ function saveOwn() {
   const nutr = [0, 1, 2, 3].map((k) => Math.round(ings.reduce((total, [n, a]) => total + (P[n][1] === "шт" ? a * P[n][8] : a) * P[n][7][k] / 100, 0)));
   const recipe = { slots: ["з", "о", "у"].filter((s) => d.slots.includes(s)).join(""), keeps: d.keeps, nutr, min: d.min, appl: [["п", "д", "а", "м", "в", "б"].filter((c) => d.appl.includes(c)).join("")],
     ings, steps, own: true, miss, src: { serves: d.serves, ings: d.ings, steps: d.steps } };
+  if (okPhoto(d.photo)) recipe.photo = d.photo;
   if (d.was && d.was !== title) {   // переименование: меню, история и отметки переходят на новое название
     const swap = (list) => list.map((x) => (x === d.was ? title : x));
     [state.plan, ...state.history.map((h) => h.plan)].forEach((plan) => plan.flat().forEach((e) => { if (e.title === d.was) e.title = title; }));
@@ -968,9 +1081,32 @@ function syncOwn() {
 }
 const okRecipe = (r) => r && typeof r.slots === "string" && Array.isArray(r.ings) && r.ings.length > 0 && r.ings.every((x) => Array.isArray(x) && P[x[0]] && x[1] > 0)
   && Array.isArray(r.steps) && r.steps.length > 0 && Array.isArray(r.nutr) && r.nutr.length === 4 && Array.isArray(r.appl) && r.min > 0 && r.keeps >= 1 && r.src && typeof r.src.ings === "string";
+const okPhoto = (photo) => typeof photo === "string" && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo);
+// Свои блюда из сохранённого. Копия из облака приходит без фото — фото, что уже есть в телефоне, остаётся.
 function restoreOwn(saved) {
-  Object.entries(saved.ownP || {}).forEach(([n, p]) => { if (!P[n] && Array.isArray(p) && p.length >= 10 && Array.isArray(p[7])) P[n] = p; });
-  Object.entries(saved.own || {}).forEach(([t, r]) => { if (!R[t] && okRecipe(r)) R[t] = Object.assign(r, { own: true }); });
+  Object.entries(saved.ownP || {}).forEach(([n, p]) => { if ((!P[n] || P[n][9]) && Array.isArray(p) && p.length >= 10 && Array.isArray(p[7]) && p[9]) P[n] = p; });
+  Object.entries(saved.own || {}).forEach(([t, r]) => {
+    const old = R[t];
+    if ((old && !old.own) || !okRecipe(r)) return;
+    if (!okPhoto(r.photo)) delete r.photo;
+    if (old && old.photo && !r.photo) r.photo = old.photo;
+    R[t] = Object.assign(r, { own: true });
+  });
+}
+// Фото с телефона: обрезается в квадрат и уменьшается, чтобы поместиться в памяти.
+function readPhoto(file) {
+  if (!file || !/^image\//.test(file.type || "")) return toast("Это не фото");
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onload = () => {
+    const size = 480, side = Math.min(img.naturalWidth, img.naturalHeight), canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    canvas.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+    URL.revokeObjectURL(url);
+    readDraft(); draft.photo = canvas.toDataURL("image/jpeg", 0.72);
+    openSheet(sheetOwn(), "full");
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("Не получилось открыть это фото"); };
+  img.src = url;
 }
 // Отметить продукты, которые есть дома. По ним подбираются блюда, и в покупки они не попадают.
 const haveText = () => { const n = ownedList().length; return n ? `Отмечено: ${n}` : "Ничего не отмечено"; };
@@ -1041,24 +1177,29 @@ function viewProfile() {
 
 const isSweet = (r) => r.ings.some(([x]) => x === "сахар" || x === "мёд") && !r.ings.some(([x]) => P[x][5].includes("meat") || P[x][5].includes("fish"));
 // Продукты блюда с количеством на всех едоков: то, что покупают, — в граммах и штуках, то, что есть дома, — в ложках.
-function ingredientRows(title, times) {
-  const r = R[title], people = eaters() * times;
+function ingredientRows(title, times, base = 0) {
+  const r = R[title], people = (base || eaters()) * times;
   return r.ings.flatMap(([n, a]) => P[n][0] === "Проверьте дома" ? pantry(n, a * people, people, isSweet(r)) : [[cap(n), amount(n, a * people)]]);
 }
 // Части окна рецепта, общие для блюда из меню и блюда из каталога.
+// Продукты с заголовком. base — сколько порций, если не на всю семью (для гостей).
+function listHtml(title, times, base = 0) {
+  return `<div class="label">Продукты <span class="note">на ${base ? `${base} ${plural(base, "порцию", "порции", "порций")}` : who()}${times > 1 ? ` · ${times} дня` : ""}</span></div>
+    <ul>${ingredientRows(title, times, base).map(([label, value]) => `<li><span>${esc(label)}</span><span class="amount">${esc(value)}</span></li>`).join("")}</ul>`;
+}
+let dishPeople = 0;   // порций в окне блюда из каталога; 0 — на всю семью
 function recipeParts(title, times) {
   const r = R[title];
   const need = new Set(r.appl.find((alt) => [...alt].every((c) => state.appl.includes(c))) || r.appl[0]);
   const where = [...need].map((c) => APPL[c].toLowerCase()).join(", ") || "без готовки";
   const close = `<button class="close" data-act="close" aria-label="Закрыть">✕</button>`;
   return {
-    top: PHOTO[title] ? `<div class="shot"><img src="photos/${esc(PHOTO[title])}" alt="">${close}</div><h3>${esc(title)}</h3>`
+    top: photoSrc(title) ? `<div class="shot"><img src="${esc(photoSrc(title))}" alt="">${close}</div><h3>${esc(title)}</h3>`
       : `<div class="sheet-top"><div class="sheet-title">${thumb(title, true)}<h3>${esc(title)}</h3></div>${close}</div>`,
     stats: `<div class="stats">${stat(r.min + " мин", where)}${stat(r.nutr[0] + " ккал", "в порции")}${stat(`${r.nutr[1]}/${r.nutr[2]}/${r.nutr[3]}`, "белки/жиры/ углев., г")}</div>`,
     kids: hint("👶", Object.keys(KIDS).filter((g) => state.kids[g]).map((g) => `${KIDS[g][0]} — ${Math.round(r.nutr[0] * KIDS[g][1] / 5) * 5} ккал`).join(", ").replace(/^(.)/, "Детская порция: $1")),
     multi: hint("♨", need.size === 1 && need.has("в") ? "Мультиварка: «Жарка» для обжарки, «Суп» или «Тушение» для остального, время то же." : ""),
-    list: `<div class="label">Продукты <span class="note">на ${who()}${times > 1 ? ` · ${times} дня` : ""}</span></div>
-    <ul>${ingredientRows(title, times).map(([label, value]) => `<li><span>${esc(label)}</span><span class="amount">${esc(value)}</span></li>`).join("")}</ul>`,
+    list: listHtml(title, times),
     steps: `<div class="label">Шаги <span class="note">отмечайте сделанное</span></div>
     <div class="steps">${r.steps.map((s, n) => `<button class="step${(state.steps[title] || []).includes(n) ? " done" : ""}" data-act="step" data-t="${esc(title)}" data-n="${n}"><b>${n + 1}</b><span>${esc(s)}.</span></button>`).join("")}</div>`,
   };
@@ -1078,6 +1219,7 @@ function sheetRecipe(d, i) {
       <button class="chip" data-act="ban" data-t="${esc(title)}" data-d="${d}" data-i="${i}">Не предлагать</button>
       ${e.left ? "" : state.cooked[d + ":" + e.slot] ? `<button class="chip on" data-act="made" data-d="${d}" data-i="${i}">✓ Приготовлено</button>`
         : `<button class="chip" data-act="made" data-d="${d}" data-i="${i}">Приготовлено</button><button class="chip" data-act="swap" data-d="${d}" data-i="${i}">↻ Заменить</button>`}
+      <button class="chip" data-act="share-recipe" data-t="${esc(title)}" data-k="${times}">Отправить рецепт</button>
       <button class="chip" data-act="copy-recipe" data-t="${esc(title)}" data-k="${times}">Скопировать рецепт</button></div>`;
 }
 // Блюдо из каталога: тот же рецепт, плюс кнопка «Поставить в меню».
@@ -1091,12 +1233,15 @@ function sheetDish(title) {
     ${hint("🏠", !haveCount(title) ? "" : missing(title).length ? "Докупить: " + missing(title).join(", ") + ". Остальное есть дома." : "Дома есть всё для этого блюда.")}
     ${p.kids}${hint("❄", r.keeps > 1 ? `Можно готовить сразу на ${r.keeps} дня: хранится в холодильнике.` : "")}${p.multi}
     ${at.length ? "" : `<button class="wide" data-act="place-open" data-t="${esc(title)}">Поставить в меню</button>`}
-    ${p.list}
+    <div class="rows people"><div class="people-row"><span class="name">Готовлю на <span class="note">например, для гостей</span></span>
+      <div class="stepper"><button data-act="dish-serves" data-k="-1" data-t="${esc(title)}" aria-label="Порций меньше">−</button><b id="serve-n">${dishPeople || Math.max(1, Math.round(eaters()))}</b><button data-act="dish-serves" data-k="1" data-t="${esc(title)}" aria-label="Порций больше">+</button></div></div></div>
+    <div id="dish-list">${listHtml(title, 1, dishPeople)}</div>
     <button class="wide ghost" data-act="cook" data-t="${esc(title)}">Готовить по шагам</button>
     ${p.steps}
     <div class="chips"><button class="chip${liked ? " on" : ""}" data-act="like" data-t="${esc(title)}">${liked ? "♥ Нравится" : "♡ Нравится"}</button>
       <button class="chip${banned ? " on" : ""}" data-act="ban" data-t="${esc(title)}">${banned ? "Скрыто · вернуть" : "Не предлагать"}</button>
-      <button class="chip" data-act="copy-recipe" data-t="${esc(title)}" data-k="1">Скопировать рецепт</button>
+      <button class="chip" data-act="share-recipe" data-t="${esc(title)}" data-k="1" data-in="dish">Отправить рецепт</button>
+      <button class="chip" data-act="copy-recipe" data-t="${esc(title)}" data-k="1" data-in="dish">Скопировать рецепт</button>
       ${r.own && !r.gone ? `<button class="chip" data-act="own-edit" data-t="${esc(title)}">✎ Изменить</button>` : ""}</div>`;
 }
 // Куда поставить блюдо из каталога: места в меню, где оно подходит по приёму пищи и сроку хранения.
@@ -1162,7 +1307,7 @@ function storageAdvice(s) {
 }
 // Список покупок текстом — чтобы вставить в заметки или отправить близким.
 function copyText(button, title, text) {
-  const done = () => { button.textContent = "Скопировано"; };
+  const done = () => { if (button) button.textContent = "Скопировано"; toast("Скопировано"); };
   const fallback = () => openSheet(`<div class="sheet-top"><h3>${title}</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
     <div class="note">Скопировать автоматически не получилось. Выделите текст и скопируйте вручную.</div><textarea id="list-text" rows="14" readonly>${esc(text)}</textarea>`);
   try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
@@ -1170,16 +1315,18 @@ function copyText(button, title, text) {
 function listText() {
   const s = shopping(), part = (g) => DEPTS.filter((d) => g[d]).map((d) => d + ":\n" + g[d].map(([n, a]) => `— ${cap(n)}, ${a}`).join("\n")).join("\n\n");
   const two = Object.keys(s.groups2).length > 0;
-  return (two ? "ПЕРВАЯ ЗАКУПКА\n\n" : "") + part(s.groups)
+  const own = state.extra.filter((x) => !x.done).map((x) => "— " + cap(x.n)).join("\n");
+  return (own ? "Своё:\n" + own + "\n\n" : "") + (two ? "ПЕРВАЯ ЗАКУПКА\n\n" : "") + part(s.groups)
     + (two ? `\n\nВТОРАЯ ЗАКУПКА (${dayLabel(s.cut).toLowerCase()} или накануне)\n\n` + part(s.groups2) : "") + "\n\nПроверьте дома: " + s.home.join(", ");
 }
 const copyList = (button) => copyText(button, "Список покупок", listText());
 // Рецепт текстом.
-function copyRecipe(button, title, times) {
+function recipeText(title, times, base = 0) {
   const r = R[title];
-  copyText(button, "Рецепт", `${title}\n${r.min} мин · ${r.nutr[0]} ккал в порции\n\nПродукты (на ${who()}${times > 1 ? `, ${times} дня` : ""}):\n`
-    + ingredientRows(title, times).map(([label, value]) => `— ${label}: ${value}`).join("\n") + "\n\nШаги:\n" + r.steps.map((step, n) => `${n + 1}. ${step}.`).join("\n"));
+  return `${title}\n${r.min} мин · ${r.nutr[0]} ккал в порции\n\nПродукты (на ${base ? base + " " + plural(base, "порцию", "порции", "порций") : who()}${times > 1 ? `, ${times} дня` : ""}):\n`
+    + ingredientRows(title, times, base).map(([label, value]) => `— ${label}: ${value}`).join("\n") + "\n\nШаги:\n" + r.steps.map((step, n) => `${n + 1}. ${step}.`).join("\n");
 }
+const copyRecipe = (button, title, times, base = 0) => copyText(button, "Рецепт", recipeText(title, times, base));
 // Меню текстом — отправить семье.
 function menuText() {
   return state.plan.map((day, d) => dayLabel(d) + "\n" + day.map((e) =>
@@ -1187,23 +1334,40 @@ function menuText() {
 }
 const copyMenu = (button) => copyText(button, "Меню", menuText());
 // Меню, анкета и отметки хранятся в браузере, чтобы при следующем открытии всё было на месте.
-const KEEP = ["every", "tab", "adults", "kids", "appl", "service", "days", "slots", "budget", "plan", "done", "note", "said", "kidNote", "restr", "liked", "banned", "steps", "hideDone", "wishes", "start", "from", "sub", "home", "cooked", "swaps", "menus", "seen", "ob", "speed", "trips", "history", "mine", "goal", "own", "ownP"];
+const KEEP = ["every", "tab", "adults", "kids", "appl", "service", "days", "slots", "budget", "plan", "done", "note", "said", "kidNote", "restr", "liked", "banned", "steps", "hideDone", "wishes", "start", "from", "sub", "home", "cooked", "swaps", "menus", "seen", "ob", "speed", "trips", "history", "mine", "goal", "own", "ownP", "extra"];
+let fullWarned = false;
 function save() {
-  try { localStorage.setItem("menu-app", JSON.stringify(Object.fromEntries(KEEP.map((key) => [key, state[key]])))); } catch (err) { /* хранилище недоступно — работаем без него */ }
+  const data = JSON.stringify(Object.fromEntries(KEEP.map((key) => [key, state[key]])));
+  if (data === lastSaved) return;   // ничего не поменялось — время сохранения не трогаем
+  lastSaved = data; state.savedAt = Date.now();
+  try { localStorage.setItem("menu-app", data.slice(0, -1) + `,"savedAt":${state.savedAt}}`); }
+  catch (err) { if (!fullWarned && err && err.name === "QuotaExceededError") { fullWarned = true; toast("Память телефона для приложения заполнена: уберите фото у части своих блюд"); } }
+  cloudPush();
 }
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem("menu-app") || "null");
-    if (saved) restoreOwn(saved);   // свои блюда нужны раньше, чем проверяется сохранённое меню
-    if (!saved || !Array.isArray(saved.plan) || !saved.plan.flat().every((e) => R[e.title])) return;
+    if (saved && applySaved(saved)) freshStart = false;
+  } catch (err) { /* сохранённое не читается — начинаем с примера */ }
+  lastSaved = JSON.stringify(Object.fromEntries(KEEP.map((key) => [key, state[key]])));
+}
+// Применяет сохранённое (из телефона или из облака). false — если оно битое.
+function applySaved(saved) {
+  try {
+    restoreOwn(saved);   // свои блюда нужны раньше, чем проверяется сохранённое меню
+    if (!saved || !Array.isArray(saved.plan) || !saved.plan.flat().every((e) => R[e.title])) return false;
     KEEP.forEach((key) => { if (saved[key] !== undefined && saved[key] !== null) state[key] = saved[key]; });
     state.history = (Array.isArray(state.history) ? state.history : []).filter((h) => h && Array.isArray(h.plan) && h.plan.length && h.plan.flat().every((e) => R[e.title]));
     syncOwn();
     if (saved.mine === undefined) state.mine = !!saved.seen && JSON.stringify(saved.plan) !== JSON.stringify(DATA.plan);   // сохранено до появления истории
+    if (!Array.isArray(state.extra)) state.extra = [];
+    state.extra = state.extra.filter((x) => x && typeof x.n === "string" && x.n.trim()).slice(0, 100);
+    state.savedAt = +saved.savedAt || 0;
     const budget = state.budget, said = state.said;
     parseWishes(state.wishes || "");
     state.budget = budget; state.said = said;
-  } catch (err) { /* сохранённое не читается — начинаем с примера */ }
+    return true;
+  } catch (err) { return false; }
 }
 function render() {
   save();
@@ -1215,7 +1379,7 @@ function render() {
     `<button class="tab${state.tab === k ? " on" : ""}" data-act="tab" data-k="${k}"><i>${icon}</i>${label}</button>`).join("");
 }
 function openSheet(html, kind = "") { $("sheet").innerHTML = `<div class="sheet ${kind}">${html}</div>`; $("sheet").hidden = false; try { if (TG) TG.BackButton.show(); } catch (err) { /* кнопки нет */ } }
-function closeSheet() { $("sheet").hidden = true; try { if (TG) TG.BackButton.hide(); } catch (err) { /* кнопки нет */ } }
+function closeSheet() { $("sheet").hidden = true; keepAwake(false); try { if (TG) TG.BackButton.hide(); } catch (err) { /* кнопки нет */ } }
 
 // Точки под каруселью показывают, какое фото сейчас по центру.
 document.addEventListener("scroll", (ev) => {
@@ -1223,6 +1387,22 @@ document.addEventListener("scroll", (ev) => {
   const at = Math.round(ev.target.scrollLeft / Math.max(1, ev.target.scrollWidth - ev.target.clientWidth) * ($("dots").children.length - 1));
   [...$("dots").children].forEach((dot, k) => dot.classList.toggle("on", k === at));
 }, true);
+document.addEventListener("keydown", (ev) => {
+  if (ev.target && ev.target.id === "extra-q" && ev.key === "Enter") { ev.preventDefault && ev.preventDefault(); addExtra(); }
+});
+document.addEventListener("change", (ev) => {
+  if (ev.target && ev.target.id === "own-photo" && ev.target.files) readPhoto(ev.target.files[0]);
+});
+document.addEventListener("visibilitychange", () => {   // после сворачивания телефон снова не гаснет, если готовка ещё идёт
+  if (cook && $("sheet") && !$("sheet").hidden && document.visibilityState === "visible") keepAwake(true);
+});
+// Свои пункты в списке покупок: можно несколько через запятую.
+function addExtra() {
+  const field = $("extra-q"), names = String((field && field.value) || "").split(",").map((x) => x.replace(/\s+/g, " ").trim().slice(0, 40)).filter(Boolean);
+  names.forEach((n) => { if (!state.extra.some((x) => low(x.n) === low(n))) state.extra.push({ n, done: false }); });
+  render();
+  if ($("extra-q") && $("extra-q").focus) $("extra-q").focus();
+}
 document.addEventListener("input", (ev) => {
   if (ev.target.id === "budget") { state.budget = +ev.target.value; $("budget-value").textContent = money(state.budget); }
   if (ev.target.id === "find-dish") $("swap-list").innerHTML = swapList(ev.target.value);
@@ -1262,6 +1442,8 @@ document.addEventListener("click", (ev) => {
     return openSheet(sheetDish(title));
   }
   else if (act === "own-del") {   // блюдо уходит из рецептов и из нынешнего меню; в прошлых меню остаётся как было
+    const before = snapshot();
+    toast("Блюдо удалено", before);
     R[t].gone = true; state.liked = state.liked.filter((x) => x !== t); draft = null;
     state.plan.forEach((day, dd) => day.forEach((e, ii) => { if (e.title === t && !e.left && !state.cooked[dd + ":" + e.slot]) swap(dd, ii); }));
     syncOwn(); closeSheet();
@@ -1299,10 +1481,25 @@ document.addEventListener("click", (ev) => {
     closeSheet(); state.tab = "menu";
   }
   else if (act === "book-more") state.bookN += 24;
-  else if (act === "dish") return openSheet(sheetDish(t));
+  else if (act === "dish") { dishPeople = 0; return openSheet(sheetDish(t)); }
+  else if (act === "dish-serves") {   // пересчёт продуктов без перерисовки окна
+    dishPeople = Math.min(20, Math.max(1, (dishPeople || Math.max(1, Math.round(eaters()))) + +k));
+    $("serve-n").textContent = dishPeople; $("dish-list").innerHTML = listHtml(t, 1, dishPeople);
+    return buzz();
+  }
+  else if (act === "share-recipe") return shareText(recipeText(t, +k || 1, b.dataset.in === "dish" ? dishPeople : 0));
+  else if (act === "undo") undo();
+  else if (act === "extra-add") return addExtra();
+  else if (act === "extra-check") { const x = state.extra[+k]; if (x) { x.done = !x.done; buzz(); } }
+  else if (act === "extra-del") state.extra.splice(+k, 1);
+  else if (act === "own-photo-del") { readDraft(); draft.photo = ""; return openSheet(sheetOwn(), "full"); }
+  else if (act === "reset-yes") {
+    try { localStorage.removeItem("menu-app"); } catch (err) { /* хранилища нет */ }
+    return cloudClear(() => location.reload());
+  }
   else if (act === "place-open") return openSheet(sheetPlace(t));
-  else if (act === "place") { if (!putDish(+d, +i, t)) return; closeSheet(); state.tab = "menu"; }
-  else if (act === "copy-recipe") return copyRecipe(b, t, +k || 1);
+  else if (act === "place") { const before = snapshot(); if (!putDish(+d, +i, t)) return; closeSheet(); state.tab = "menu"; toast("Блюдо в меню", before); }
+  else if (act === "copy-recipe") return copyRecipe(b, t, +k || 1, b.dataset.in === "dish" ? dishPeople : 0);
   else if (act === "speed") { state.speed = +k; if (state.seen) return reNew(); }
   else if (act === "ob") { state.ob = Math.max(0, state.ob + +k); render(); $("screen").scrollTop = 0; return; }
   else if (act === "ob-skip") state.seen = true;
@@ -1310,11 +1507,12 @@ document.addEventListener("click", (ev) => {
   else if (act === "recipe") return openSheet(sheetRecipe(+d, +i));
   else if (act === "swap") { swapAt = [+d, +i]; offer = []; newOffer(); return openSheet(sheetSwap()); }
   else if (act === "reroll") { newOffer(); return openSheet(sheetSwap()); }
-  else if (act === "choose") { if (!putDish(swapAt[0], swapAt[1], t)) return; closeSheet(); }
+  else if (act === "choose") { const before = snapshot(); if (!putDish(swapAt[0], swapAt[1], t)) return; closeSheet(); toast("Заменено", before); }
   else if (act === "cook") {    // блюдо из меню (день и место) или из каталога (название)
     const title = t || state.plan[+d][+i].title, made = state.steps[title] || [], count = R[title].steps.length;
     let n = 0; while (n < count - 1 && made.includes(n)) n++;   // продолжаем с первого несделанного шага
-    cook = { title, d: t ? null : +d, i: t ? null : +i, n };
+    cook = { title, d: t ? null : +d, i: t ? null : +i, n, times: t ? 1 : portions(+d, state.plan[+d][+i]), base: t ? dishPeople : 0 };
+    keepAwake(true);
     return openSheet(sheetCook(), "full");
   }
   else if (act === "cook-go") {
@@ -1324,7 +1522,7 @@ document.addEventListener("click", (ev) => {
     if (cook.n >= count) {
       const at = cook; cook = null;
       if (at.d !== null) state.cooked[at.d + ":" + state.plan[at.d][at.i].slot] = true;
-      buzz("ok");
+      buzz("ok"); keepAwake(false);
       render();
       return openSheet(sheetDone(at.title, at.d, at.i));
     }
@@ -1347,11 +1545,11 @@ document.addEventListener("click", (ev) => {
   }
   else if (act === "like") { state.liked = toggle(state.liked, t); render(); return openSheet(d !== undefined ? sheetRecipe(+d, +i) : sheetDish(t)); }
   else if (act === "ban") {    // блюдо уходит из меню и больше не попадается; повторное нажатие в каталоге возвращает его
-    const was = state.banned.includes(t);
+    const was = state.banned.includes(t), before = snapshot();
     state.banned = toggle(state.banned, t); state.liked = state.liked.filter((x) => x !== t);
     if (was) { render(); return openSheet(sheetDish(t)); }
     state.plan.forEach((day, dd) => day.forEach((e, ii) => { if (e.title === t && !e.left && !state.cooked[dd + ":" + e.slot]) swap(dd, ii); }));
-    closeSheet();
+    closeSheet(); toast("Больше не предложу это блюдо", before);
   }
   else if (act === "share-list") return shareText("Список покупок\n\n" + listText());
   else if (act === "share-menu") return shareText(`Меню на ${state.plan.length} ${plural(state.plan.length, "день", "дня", "дней")}\n\n` + menuText());
@@ -1365,10 +1563,9 @@ document.addEventListener("click", (ev) => {
     else { state.banned = [...new Set([...state.banned, t])]; state.liked = state.liked.filter((x) => x !== t); }
     closeSheet();
   }
-  else if (act === "reset") {
-    try { localStorage.removeItem("menu-app"); } catch (err) { /* хранилища нет — просто перезагружаем */ }
-    return location.reload();
-  }
+  else if (act === "reset") return openSheet(`<div class="sheet-top"><h3>Начать заново?</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
+    <div class="note">Удалятся меню, прошлые меню, свои блюда, список покупок и анкета — в этом телефоне и в облаке Telegram. Отменить это нельзя.</div>
+    <div class="cook-nav"><button class="wide ghost" data-act="close">Оставить</button><button class="wide" data-act="reset-yes">Удалить всё</button></div>`);
   else if (act === "new") return openSheet(sheetNew());
   else if (act === "pay") return openSheet(sheetPay());
   else if (act === "close") return closeSheet();
@@ -1397,4 +1594,6 @@ document.addEventListener("click", (ev) => {
 tgInit();
 load();
 render();
+booted = true;
+cloudPull();
 </script>
