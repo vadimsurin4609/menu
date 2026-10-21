@@ -252,7 +252,7 @@ const state = {
   trips: false, history: [], mine: false, goal: 0, own: {}, ownP: {}, bookOwn: false, extra: [], savedAt: 0,
 };
 // Без подписки: одно своё меню и десять замен — как в боте.
-const FREE_MENUS = 1, FREE_SWAPS = 10;
+let FREE_MENUS = 5, FREE_SWAPS = 20;   // как в чате бота; сервер присылает точные числа из настроек
 const freeLeft = () => { const m = Math.max(0, FREE_MENUS - state.menus), w = Math.max(0, FREE_SWAPS - state.swaps);
   return `бесплатно осталось: ${m} меню и ${w} ${plural(w, "замена", "замены", "замен")}`; };
 // Дни меню привязаны к календарю: день 1 — сегодня или завтра.
@@ -294,6 +294,8 @@ function server(path, extra = {}) {
 function syncSub() {
   return server("me").then((r) => {
     PRICE = r.price || PRICE; CARD = r.card || 0;
+    if (r.free_menus) FREE_MENUS = r.free_menus;
+    if (r.free_swaps) FREE_SWAPS = r.free_swaps;
     if ((r.admin || "") !== ADMIN) { ADMIN = r.admin || ""; render(); }
     const until = r.paid_until * 1000 > Date.now() ? r.paid_until * 1000 : 0;
     if (until !== state.sub) { state.sub = until; render(); }   // без save(): иначе копия в телефоне покажется новее облачной
@@ -638,7 +640,7 @@ function swap(d, i) {
 
 // Ставит блюдо на место в меню. Без подписки считается заменой; возвращает false, если замены кончились.
 function putDish(d, i, title) {
-  if (!state.sub && state.swaps >= FREE_SWAPS) { openSheet(sheetPay("Бесплатные замены закончились.")); return false; }
+  if (!state.sub && state.swaps >= FREE_SWAPS) { openSheet(sheetPay("Бесплатные замены в этом меню закончились.")); return false; }
   state.swaps++;
   const e = state.plan[d][i];
   delete state.cooked[d + ":" + e.slot];
@@ -893,7 +895,7 @@ function viewOnboard() {
     ${hint("🛒", "Список покупок с примерной суммой")}
     <button class="wide push" data-act="ob" data-k="1">Начать</button>
     <button class="skip" data-act="ob-skip">Посмотреть пример без анкеты</button>
-    <div class="legend center">Четыре коротких вопроса. Первое меню — бесплатно.</div>`;
+    <div class="legend center">Четыре коротких вопроса. ${FREE_MENUS > 1 ? `Первые ${FREE_MENUS} меню` : "Первое меню"} — бесплатно.</div>`;
   const steps = [
     ["Для кого готовим?", peopleFields("")],
     ["Как вы готовите?", `<div class="field"><div class="label">Что готовлю <span class="note">можно всё сразу</span></div>${chips([["завтрак", "Завтраки"], ["обед", "Обеды"], ["ужин", "Ужины"]], (k) => state.slots.includes(k), "slot")}</div>` + everyField() + `<div class="field"><div class="label">Техника <span class="note">что есть на кухне</span></div>${chips(Object.entries(APPL), (k) => state.appl.includes(k), "appl")}</div>`],
@@ -1624,8 +1626,8 @@ document.addEventListener("click", (ev) => {
   else if (act === "build") {
     const field = $("wishes");
     state.wishes = (field && field.value) || "";
-    if (!state.sub && state.menus >= FREE_MENUS) return openSheet(sheetPay("Бесплатное меню уже использовано."));
-    state.menus++;
+    if (!state.sub && state.menus >= FREE_MENUS) return openSheet(sheetPay(FREE_MENUS > 1 ? "Бесплатные меню закончились." : "Бесплатное меню уже использовано."));
+    state.menus++; state.swaps = 0;   // бесплатные замены — на каждое меню, как в чате
     keepMenu();
     parseWishes(state.wishes);
     noteSpeed();
