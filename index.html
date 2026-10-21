@@ -179,6 +179,7 @@ button.day-name { width: 100%; text-align: left; }
 .toast { position: absolute; left: 12px; right: 12px; bottom: 74px; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--fg); color: var(--app); border-radius: 14px; padding: 11px 14px; font-size: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 .toast button { color: var(--accent); font-weight: 700; padding: 4px 2px; flex: none; }
+.copy-i { width: 30px; height: 30px; border-radius: 9px; background: var(--chip); color: var(--fg); flex: none; font-size: 15px; display: grid; place-items: center; }
 .add-row { display: flex; gap: 8px; align-items: center; }
 .add-row input { flex: 1; min-width: 0; }
 .photo-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -815,6 +816,7 @@ function viewShop() {
     rows.map(([n, a, , key]) => `<div class="row${state.done[key] ? " done" : ""}">
       <button class="box${state.homeMode ? " home" : ""}" data-act="${state.homeMode ? "home" : "check"}" data-n="${esc(state.homeMode ? n : key)}" aria-label="${state.homeMode ? "Есть дома" : "Отметить"}: ${esc(n)}">${state.homeMode ? "🏠" : "✓"}</button>
       <span class="name">${esc(cap(n))}</span><span class="amount">${a}</span>
+      <button class="copy-i" data-act="copy-item" data-n="${esc(n)}" aria-label="Скопировать: ${esc(n)}">⧉</button>
       <a class="find" href="${esc(url.replace("{q}", encodeURIComponent(n)))}" target="_blank" rel="noopener">Найти</a></div>`).join("") + "</div></div>").join("");
   const trip = (name, when, sum) => `<div class="trip"><b>${name}</b><span>${esc(when)} · ≈ ${money(sum)} ₽</span></div>`;
   const two = Object.keys(groups2).length > 0;
@@ -1306,11 +1308,25 @@ function storageAdvice(s) {
     ${canSplit ? `<div class="legend">Заморозьте или купите позже. Могу сам вынести это во вторую закупку.</div><button class="wide ghost" data-act="trips">Разделить на две закупки</button>` : ""}</div>`;
 }
 // Список покупок текстом — чтобы вставить в заметки или отправить близким.
+// Копирование в буфер. Если новый способ запрещён (так бывает внутри Telegram), пробуем старый — через скрытое поле.
+function clip(text) {
+  const legacy = () => {
+    try {
+      const field = document.createElement("textarea");
+      field.value = text; field.setAttribute("readonly", ""); field.style.position = "fixed"; field.style.opacity = "0";
+      document.body.appendChild(field); field.select(); const ok = document.execCommand("copy"); field.remove();
+      return !!ok;
+    } catch (err) { return false; }
+  };
+  try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(() => true, legacy); } catch (err) { /* ниже — старый способ */ }
+  return Promise.resolve(legacy());
+}
 function copyText(button, title, text) {
-  const done = () => { if (button) button.textContent = "Скопировано"; toast("Скопировано"); };
-  const fallback = () => openSheet(`<div class="sheet-top"><h3>${title}</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
+  clip(text).then((ok) => {
+    if (ok) { if (button) button.textContent = "Скопировано"; return toast("Скопировано"); }
+    openSheet(`<div class="sheet-top"><h3>${title}</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
     <div class="note">Скопировать автоматически не получилось. Выделите текст и скопируйте вручную.</div><textarea id="list-text" rows="14" readonly>${esc(text)}</textarea>`);
-  try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
+  });
 }
 function listText() {
   const s = shopping(), part = (g) => DEPTS.filter((d) => g[d]).map((d) => d + ":\n" + g[d].map(([n, a]) => `— ${cap(n)}, ${a}`).join("\n")).join("\n\n");
@@ -1554,6 +1570,7 @@ document.addEventListener("click", (ev) => {
   else if (act === "share-list") return shareText("Список покупок\n\n" + listText());
   else if (act === "share-menu") return shareText(`Меню на ${state.plan.length} ${plural(state.plan.length, "день", "дня", "дней")}\n\n` + menuText());
   else if (act === "copy") return copyList(b);
+  else if (act === "copy-item") { buzz(); return clip(cap(n)).then((ok) => toast(ok ? `Скопировано: ${cap(n)}` : "Не получилось скопировать")); }
   else if (act === "copy-menu") return copyMenu(b);
   else if (act === "home-mode") state.homeMode = !state.homeMode;
   else if (act === "home") { state.home = toggle(state.home, n); delete state.done[n]; delete state.done[n + "#2"]; if (shopping().total <= state.budget) state.note = ""; }
