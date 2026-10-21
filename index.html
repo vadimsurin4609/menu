@@ -266,7 +266,8 @@ function dayLabel(d) {
 const $ = (id) => document.getElementById(id);
 // Внутри Telegram приложение берёт его тему и имя пользователя, показывает системную кнопку «Назад» и отвечает вибрацией.
 const BOT = "whtcook_bot";
-let TG = null;
+const API = "https://201-34-145-253.sslip.io/api/";   // бот на сервере: подписка и счёт на оплату
+let TG = null, PRICE = 150, CARD = 0;   // CARD — цена картой в рублях, 0 — картой нельзя
 function tgInit() {
   const app = globalThis.Telegram && globalThis.Telegram.WebApp;
   if (TG || !app || !app.platform || app.platform === "unknown") return;   // открыто не в Telegram — работаем как обычная страница
@@ -281,7 +282,33 @@ function tgInit() {
   safe(paint); safe(() => app.onEvent("themeChanged", paint));
   safe(() => app.BackButton.onClick(() => closeSheet()));
   if ($("screen") && $("screen").innerHTML) render();
-  if (booted) cloudPull();
+  if (booted) { cloudPull(); syncSub(); }
+}
+// Подписку знает только сервер: приложение спрашивает его, подписывая запрос данными Telegram.
+function server(path, extra = {}) {
+  return Promise.resolve().then(() => {
+    if (!TG || !TG.initData) throw new Error("not in telegram");
+    return fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ initData: TG.initData }, extra)) });
+  }).then((r) => r.json()).then((r) => { if (!r.ok) throw new Error(r.error || "api"); return r; });
+}
+function syncSub() {
+  return server("me").then((r) => {
+    PRICE = r.price || PRICE; CARD = r.card || 0;
+    const until = r.paid_until * 1000 > Date.now() ? r.paid_until * 1000 : 0;
+    if (until !== state.sub) { state.sub = until; render(); }   // без save(): иначе копия в телефоне покажется новее облачной
+    return until;
+  }).catch(() => state.sub);
+}
+function buy(method = "stars") {
+  if (!TG) return toast(`Оплата — в Telegram: откройте @${BOT}`);
+  if (!TG.openInvoice || (TG.isVersionAtLeast && !TG.isVersionAtLeast("6.1"))) return toast("Обновите Telegram, чтобы оплатить");
+  server("invoice", { method }).then((r) => TG.openInvoice(r.link, (status) => {
+    if (status !== "paid") return status === "failed" ? toast("Оплата не прошла") : null;
+    buzz("ok"); closeSheet(); toast("Оплата прошла, спасибо!");
+    let tries = 0;   // подтверждение от Telegram приходит боту за пару секунд
+    const again = () => syncSub().then((until) => { if (!until && ++tries < 8) setTimeout(again, 1500); });
+    again();
+  })).catch(() => toast("Не удалось связаться с сервером. Попробуйте позже"));
 }
 // Приветствие: при каждом открытии новое, в разной форме; одно из них — по времени суток.
 const HELLOS = ["Привет!", "Приветик!", "Приветствуем!", "Здравствуйте!", "Здравствуй!", "Салют!", "Доброго дня!", "Рады вас видеть!", "Как хорошо, что вы зашли!",
@@ -1173,7 +1200,7 @@ function viewProfile() {
     <div class="field"><div class="label">Магазин</div>${chips(Object.entries(S).map(([k, v]) => [k, v[0]]), (k) => state.service === k, "service")}</div>
     <div class="field"><div class="label">Подписка</div>
       <div class="total"><div><b>${state.sub ? "Активна" : "Пробная"}</b><br><span>${state.sub ? "до " + new Date(state.sub).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : freeLeft()}</span></div>${state.sub ? "" : `<button class="pill" data-act="pay">Оформить</button>`}</div></div>
-    <div class="legend">Тестовая версия: цены примерные, оплата пока не списывается.</div>
+    <div class="legend">Цены в покупках примерные: в магазине могут отличаться.</div>
     <div class="chips"><button class="chip" data-act="reset">Начать заново</button></div>`;
 }
 
@@ -1293,10 +1320,11 @@ function sheetNew() {
 function sheetPay(reason = "") {
   return `<div class="sheet-top"><h3>Подписка на 30 дней</h3><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
     ${hint("!", reason)}
-    <div class="price">150 ⭐</div>
+    <div class="price">${PRICE} ⭐${CARD ? ` <span class="note">или ${money(CARD)} ₽</span>` : ""}</div>
     ${hint("✓", "Новые меню — сколько угодно")}${hint("✓", "Замены блюд и правки текстом без лимита")}${hint("✓", "Список покупок под ваш магазин и бюджет")}${hint("✓", "Прошлые меню: повтор одним нажатием")}
-    <div class="legend">Оплата звёздами Telegram, карта не нужна. Без автопродления. Сейчас тестовая версия: звёзды не списываются.</div>
-    <button class="wide" data-act="subscribe">Оформить за 150 ⭐</button>`;
+    <div class="legend">${CARD ? "Звёздами Telegram или банковской картой." : "Оплата звёздами Telegram, карта не нужна."} Без автопродления. Вопросы по оплате — команда /paysupport в чате с ботом.</div>
+    <button class="wide" data-act="subscribe">Оформить за ${PRICE} ⭐</button>
+    ${CARD ? `<button class="wide ghost" data-act="subscribe" data-k="card">Картой · ${money(CARD)} ₽</button>` : ""}`;
 }
 
 // Что не доживёт до дня готовки. Если часть нужна во второй половине меню — предлагается вторая закупка.
@@ -1547,7 +1575,7 @@ document.addEventListener("click", (ev) => {
   }
   else if (act === "timer") return startTimer(+k);
   else if (act === "timer-stop") { timer = null; return showTimer(); }
-  else if (act === "subscribe") { state.sub = Date.now() + 30 * 864e5; closeSheet(); }
+  else if (act === "subscribe") return buy(k === "card" ? "card" : "stars");
   else if (act === "from") { state.from = +k; return reNew(); }
   else if (act === "check") state.done[n] = !state.done[n];
   else if (act === "hide") state.hideDone = !state.hideDone;
@@ -1613,4 +1641,5 @@ load();
 render();
 booted = true;
 cloudPull();
+syncSub();
 </script>
