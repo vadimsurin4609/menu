@@ -143,6 +143,11 @@ button.find { font: inherit; font-size: 13px; font-weight: 600; color: var(--acc
 .dots { display: flex; justify-content: center; align-items: center; gap: 6px; flex: none; }
 .dots button { width: 7px; height: 7px; border-radius: 999px; background: var(--line); transition: width .15s; }
 .dots button.on { width: 18px; background: var(--accent-text); }
+.guide-art { font-size: 64px; line-height: 1; text-align: center; padding: 14px 0 4px; }
+.guide-text { font-size: 15px; line-height: 1.45; margin: 0; }
+.guide-text b { font-weight: 700; }
+.guide-nav { display: flex; gap: 8px; }
+.guide-nav .wide { flex: 1; }
 .hello { font: 700 27px/1.12 var(--display); margin: 0; text-wrap: balance; }
 .hello.small { font-size: 21px; margin-top: 2px; }
 .hi { font: 500 15px/1.2 var(--display); color: var(--accent-text); margin-bottom: -6px; }
@@ -247,7 +252,7 @@ const state = {
   prefs: { exclude: new Set(), boost: new Set(), have: new Set(), maxMin: 0 }, said: "",
   restr: [], liked: [], banned: [], steps: {}, hideDone: false, wishes: "", every: 2,
   days: 5, slots: ["обед", "ужин"], budget: 5000, plan: DATA.plan, done: {}, note: "",
-  start: 0, from: 0, sub: 0, home: [], cooked: {}, swaps: 0, menus: 0, homeMode: false, seen: false, ob: 0,
+  start: 0, from: 0, sub: 0, home: [], cooked: {}, swaps: 0, menus: 0, homeMode: false, seen: false, ob: 0, guide: false,
   speed: 0, bookQ: "", bookSlot: "", bookQuick: false, bookLiked: false, bookAll: false, bookN: 24, bookHome: false,
   trips: false, history: [], mine: false, goal: 0, own: {}, ownP: {}, bookOwn: false, extra: [], savedAt: 0,
 };
@@ -1183,6 +1188,30 @@ function sheetPast(k) {
     ${days}
     <div class="cook-nav"><button class="wide ghost" data-act="history">Назад</button><button class="wide ghost" data-act="hist-del" data-k="${k}">Удалить</button></div>`;
 }
+// Инструкция: показывается один раз после анкеты, потом — из «Анкеты» по кнопке «Как пользоваться».
+const GUIDE = [
+  ["🍽", "Меню", () => "Меню на несколько дней уже готово. <b>Нажмите на блюдо</b> — откроется рецепт с продуктами и шагами. Не нравится блюдо — нажмите <b>↻</b> рядом с ним: покажу замены и на сколько изменится сумма."],
+  ["👩‍🍳", "Готовка", () => "В рецепте есть кнопка <b>«Готовить по шагам»</b>: крупный текст, таймер, а экран не гаснет. После готовки отметьте <b>«Приготовлено»</b> и оцените блюдо — понравившиеся буду предлагать чаще."],
+  ["🛒", "Покупки", () => "Все продукты на меню одним списком с <b>примерной суммой</b>. Отмечайте купленное галочкой, а то, что уже есть, — кнопкой <b>«Уже есть дома»</b>: уберу из суммы. Список можно скопировать или <b>отправить</b> близким."],
+  ["📖", "Рецепты", () => `Здесь все блюда с фото. Ищите по названию или нажмите <b>«Из того, что есть»</b>. Любое блюдо можно <b>поставить в меню</b>, а ещё добавить <b>своё блюдо</b>.`],
+  ["⚙️", "Анкета и новое меню", () => `В <b>«Анкете»</b> — сколько вас, техника, что не едите и цель по калориям. Новое меню — кнопкой <b>«Новое меню»</b> на экране меню.${state.sub ? "" : ` Бесплатно ${FREE_MENUS > 1 ? `первые ${FREE_MENUS} меню` : "первое меню"} и ${FREE_SWAPS} ${plural(FREE_SWAPS, "замена", "замены", "замен")} в каждом, дальше — подписка.`}`],
+];
+function sheetGuide(n) {
+  const [art, title, body] = GUIDE[n], last = n === GUIDE.length - 1;
+  return `<div class="sheet-top"><div><div class="note">Как пользоваться · ${n + 1} из ${GUIDE.length}</div><h3>${title}</h3></div><button class="close" data-act="close" aria-label="Закрыть">✕</button></div>
+    <div class="guide-art" aria-hidden="true">${art}</div>
+    <p class="guide-text">${body()}</p>
+    <div class="dots">${GUIDE.map((g, k) => `<button class="${k === n ? "on" : ""}" data-act="guide" data-k="${k}" aria-label="Карточка ${k + 1}: ${g[1]}"></button>`).join("")}</div>
+    <div class="guide-nav">${n ? `<button class="wide ghost" data-act="guide" data-k="${n - 1}">Назад</button>` : ""}<button class="wide" data-act="${last ? "close" : "guide"}" data-k="${n + 1}">${last ? "Понятно, начнём" : "Дальше"}</button></div>`;
+}
+// Первый вход: инструкция открывается сама, один раз
+function maybeGuide() {
+  if (!booted || !state.seen || state.guide || !$("sheet").hidden) return;
+  state.guide = true;
+  save();
+  openSheet(sheetGuide(0));
+}
+
 function viewProfile() {
   return `<div class="head"><h2>Анкета</h2><span class="sub">для новых меню</span></div>
     ${peopleFields("")}
@@ -1200,7 +1229,7 @@ function viewProfile() {
     <div class="field"><div class="label">Подписка</div>
       <div class="total"><div><b>${state.sub ? "Активна" : "Пробная"}</b><br><span>${state.sub ? "до " + new Date(state.sub).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : freeLeft()}</span></div>${state.sub ? "" : `<button class="pill" data-act="pay">Оформить</button>`}</div></div>
     <div class="legend">Сумма покупок — по средним ценам, в магазине может отличаться.</div>
-    <div class="chips"><button class="chip" data-act="reset">Начать заново</button>${ADMIN ? `<button class="chip" data-act="admin">Админка</button>` : ""}</div>`;
+    <div class="chips"><button class="chip" data-act="guide" data-k="0">Как пользоваться</button><button class="chip" data-act="reset">Начать заново</button>${ADMIN ? `<button class="chip" data-act="admin">Админка</button>` : ""}</div>`;
 }
 
 const isSweet = (r) => r.ings.some(([x]) => x === "сахар" || x === "мёд") && !r.ings.some(([x]) => P[x][5].includes("meat") || P[x][5].includes("fish"));
@@ -1377,7 +1406,7 @@ function menuText() {
 }
 const copyMenu = (button) => copyText(button, "Меню", menuText());
 // Меню, анкета и отметки хранятся в браузере, чтобы при следующем открытии всё было на месте.
-const KEEP = ["every", "tab", "adults", "kids", "appl", "days", "slots", "budget", "plan", "done", "note", "said", "kidNote", "restr", "liked", "banned", "steps", "hideDone", "wishes", "start", "from", "sub", "home", "cooked", "swaps", "menus", "seen", "ob", "speed", "trips", "history", "mine", "goal", "own", "ownP", "extra"];
+const KEEP = ["guide", "every", "tab", "adults", "kids", "appl", "days", "slots", "budget", "plan", "done", "note", "said", "kidNote", "restr", "liked", "banned", "steps", "hideDone", "wishes", "start", "from", "sub", "home", "cooked", "swaps", "menus", "seen", "ob", "speed", "trips", "history", "mine", "goal", "own", "ownP", "extra"];
 let fullWarned = false;
 function save() {
   const data = JSON.stringify(Object.fromEntries(KEEP.map((key) => [key, state[key]])));
@@ -1545,8 +1574,9 @@ document.addEventListener("click", (ev) => {
   else if (act === "copy-recipe") return copyRecipe(b, t, +k || 1, b.dataset.in === "dish" ? dishPeople : 0);
   else if (act === "speed") { state.speed = +k; if (state.seen) return reNew(); }
   else if (act === "ob") { state.ob = Math.max(0, state.ob + +k); render(); $("screen").scrollTop = 0; return; }
-  else if (act === "ob-skip") state.seen = true;
-  else if (act === "ob-build") { parseWishes(""); state.wishes = ""; noteSpeed(); newPlan(); buzz("ok"); state.mine = true; state.seen = true; state.ob = 0; state.tab = "menu"; render(); $("screen").scrollTop = 0; return; }
+  else if (act === "ob-skip") { state.seen = true; render(); return maybeGuide(); }
+  else if (act === "guide") { buzz(); return openSheet(sheetGuide(Math.min(GUIDE.length - 1, Math.max(0, +k || 0)))); }
+  else if (act === "ob-build") { parseWishes(""); state.wishes = ""; noteSpeed(); newPlan(); buzz("ok"); state.mine = true; state.seen = true; state.ob = 0; state.tab = "menu"; render(); $("screen").scrollTop = 0; return maybeGuide(); }
   else if (act === "recipe") return openSheet(sheetRecipe(+d, +i));
   else if (act === "swap") { swapAt = [+d, +i]; offer = []; newOffer(); return openSheet(sheetSwap()); }
   else if (act === "reroll") { newOffer(); return openSheet(sheetSwap()); }
@@ -1639,6 +1669,7 @@ tgInit();
 load();
 render();
 booted = true;
+maybeGuide();
 cloudPull();
 syncSub();
 </script>
