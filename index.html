@@ -5,6 +5,7 @@
 <style>body { margin: 0; }</style>
 <script src="https://telegram.org/js/telegram-web-app.js" onload="window.tgInit && tgInit()" async></script>
 <title>Что готовим</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='122' fill='%23E8573A'/%3E%3Cg transform='translate(83 83) scale(3.46)'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M36 20c-5-4 5-7 0-13'/%3E%3Cpath d='M50 20c-5-4 5-7 0-13'/%3E%3Cpath d='M64 20c-5-4 5-7 0-13'/%3E%3C/g%3E%3Cg transform='translate(10 22) scale(0.8)'%3E%3Cpath d='M50 6C75 6 94 23 94 46C94 69 75 86 50 86C44 86 38 85 33 83L14 93L19 76C11 68 6 58 6 46C6 23 25 6 50 6Z' fill='%23FFFFFF'/%3E%3Cpath d='M37 38A13 13 0 1 1 57 49C52 52 50 55 50 60' fill='none' stroke='%23E8573A' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='72' r='5.5' fill='%23E8573A'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
 <style>
 /* Раскладка: один экран телефона. На широком экране — телефон в рамке и подпись сбоку, на телефоне — приложение во весь экран. */
@@ -151,6 +152,7 @@ button.find { font: inherit; font-size: 13px; font-weight: 600; color: var(--acc
 .hello { font: 700 27px/1.12 var(--display); margin: 0; text-wrap: balance; }
 .hello.small { font-size: 21px; margin-top: 2px; }
 .hi { font: 500 15px/1.2 var(--display); color: var(--accent-text); margin-bottom: -6px; }
+.app-logo { display: block; width: 52px; height: 52px; border-radius: 14px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='122' fill='%23E8573A'/%3E%3Cg transform='translate(83 83) scale(3.46)'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M36 20c-5-4 5-7 0-13'/%3E%3Cpath d='M50 20c-5-4 5-7 0-13'/%3E%3Cpath d='M64 20c-5-4 5-7 0-13'/%3E%3C/g%3E%3Cg transform='translate(10 22) scale(0.8)'%3E%3Cpath d='M50 6C75 6 94 23 94 46C94 69 75 86 50 86C44 86 38 85 33 83L14 93L19 76C11 68 6 58 6 46C6 23 25 6 50 6Z' fill='%23FFFFFF'/%3E%3Cpath d='M37 38A13 13 0 1 1 57 49C52 52 50 55 50 60' fill='none' stroke='%23E8573A' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='72' r='5.5' fill='%23E8573A'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") center/cover; }
 .push { margin-top: auto; }
 .skip { color: var(--accent-text); font-weight: 600; padding: 6px; text-align: center; }
 .center { text-align: center; }
@@ -893,6 +895,7 @@ function viewOnboard() {
     "Блинчики на молоке", "Тыквенный суп-пюре", "Домашняя шаурма с курицей", "Красная рыба с картофелем", "Шакшука", "Пицца на лаваше с ветчиной"];
   if (!n) return `<div class="hero" id="hero">${show.map((t) => thumb(t, true)).join("").replace(/ loading="lazy"/g, "")}</div>
     <div class="dots" id="dots">${show.map((t, k) => `<button class="${k ? "" : "on"}" data-act="hero" data-k="${k}" aria-label="Фото ${k + 1}: ${esc(t)}"></button>`).join("")}</div>
+    <span class="app-logo" role="img" aria-label="Что готовим?"></span>
     <div class="hi">${esc(hello)} 👋</div><h1 class="hello">Что готовим на этой неделе?</h1>
     <div class="note">Меню, рецепты и список покупок — за одну минуту.</div>
     ${hint("🍽", "Меню на 3–7 дней под вашу семью, технику и бюджет")}
